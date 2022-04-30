@@ -1,0 +1,655 @@
+/*
+ * Copyright (C) 2015 Chen-Yu Tsai <wens@csie.org>
+ * Copyright (C) 2017 @lex <alex.mobigo@gmail.comr>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "sun8i-h3-x.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
+/ {
+	model = "Banana Pi M2 Zero";
+	compatible = "sinovoip,bananapi zero", "allwinner,sun8i-h3";
+
+	aliases {
+		ethernet0 = &emac;
+        	ethernet1 = &brcmf;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+        	i2c2 = &i2c2;
+   		spi0 = &spi0;
+		/* spi1 = &spi1; */
+		spidev0 = &spidev0;
+		spiflash = &spiflash;
+		pitft = &pitft;
+		pitft_ts = &pitft_ts;
+		mmc0 = &mmc0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+    
+#ifdef _CAMERA_OV5640_    
+	i2c-csi {
+		compatible = "i2c-gpio";
+		sda-gpios = <&pio 4 13 GPIO_ACTIVE_HIGH>; /* CSI0-SDA: PE13 */
+		scl-gpios = <&pio 4 12 GPIO_ACTIVE_HIGH>; /* CSI0-SCK: PE12 */
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ov5640: camera@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&csi_mclk_pin>;
+			clocks = <&ccu CLK_CSI_MCLK>;
+			clock-names = "xclk";
+
+	    AVDD-supply = <&reg_cam_avdd>;
+	    DOVDD-supply = <&reg_cam_dovdd>;
+	    DVDD-supply = <&reg_cam_dvdd>;
+			reset-gpios = <&pio 4 14 GPIO_ACTIVE_LOW>; /* CSI0-RST: PE14 */
+			powerdown-gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>; /* CSI0-PWDN: PE15 */
+
+			port {
+				ov5640_ep: endpoint {
+					remote-endpoint = <&csi_ep>;
+					bus-width = <8>;
+					hsync-active = <1>; /* Active high */
+					vsync-active = <0>; /* Active low */
+					data-active = <1>;  /* Active high */
+					pclk-sample = <1>;  /* Rising */
+				};
+			};
+		};
+	};
+#endif    
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_r_bpi>;
+
+		pwr_led {
+			label = "bpi:red:pwr";
+			gpios = <&r_pio 0 10 GPIO_ACTIVE_LOW>; /* PL10 */
+			/* default-state = "on"; */
+            linux,default-trigger = "heartbeat";
+		};
+
+	};
+
+    
+    wifi_pwrseq: wifi_pwrseq {
+        compatible = "mmc-pwrseq-simple";
+        pinctrl-names = "default";
+        reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+        clocks = <&rtc 1>;
+        clock-names = "ext_clock";        
+    };
+    
+
+#ifdef _OLD_
+	rfkill_bt {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_pwr_pin>;
+        reset-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; // PG12 
+		clocks = <&osc32k>;
+		/* clock-frequency = <32768>; */
+		rfkill-name = "sunxi-bt";
+		rfkill-type = "bluetooth";
+	};
+#endif 
+
+#ifdef _CAMERA_OV5640_    
+    cam_xclk: cam-xclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "cam-xclk";
+	};
+
+	reg_cam_avdd: cam-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "cam-avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		vin-supply = <&reg_vcc3v3>;
+	};
+
+	reg_cam_dovdd: cam-dovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "cam-dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_vcc3v3>;
+	};
+
+	reg_cam_dvdd: cam-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "cam-dvdd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		vin-supply = <&reg_vcc3v3>;
+	};
+#endif    
+    
+    reg_sy8113b: gpio-regulator {
+        pinctrl-names = "default";
+        pinctrl-0 = <&vdd_cpux_r_bpi>;
+
+		compatible = "regulator-gpio";
+		regulator-name = "vdd-cpux";
+		regulator-type = "voltage";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-ramp-delay = <50>; 		// 50=4ms check
+
+		gpios = <&r_pio 0 1 GPIO_ACTIVE_HIGH>; 	// PL1 check
+		enable-active-high;
+		gpios-states = <0x1>;
+		states = <1100000 0x0 1300000 0x1>;
+	};
+    
+    
+	r_gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sw_r_bpi>;
+
+		k1 {
+			label = "k1";
+			linux,code = <KEY_POWER>;
+			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+/*
+&cpu0 {
+	operating-points = <
+		1008000	1300000
+		816000	1100000
+		624000	1100000
+		480000	1100000
+		312000	1100000
+		240000	1100000
+		120000	1100000
+		>;
+	#cooling-cells = <2>;
+	cooling-min-level = <0>;
+	cooling-max-level = <6>;
+};
+*/
+
+&cpu_thermal {
+	trips {
+		cpu_warm: cpu_warm {
+			temperature = <70000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		cpu_hot: cpu_hot {
+			temperature = <85000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		cpu_very_hot: cpu_very_hot {
+			temperature = <95000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		cpu_crit: cpu_crit {
+			temperature = <105000>;
+			hysteresis = <2000>;
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		cpu_warm_limit_cpu {
+			trip = <&cpu_warm>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 1>;
+		};
+		cpu_hot_limit_cpu {
+			trip = <&cpu_hot>;
+			cooling-device = <&cpu0 2 3>;
+		};
+		cpu_very_hot_limit_cpu {
+			trip = <&cpu_very_hot>;
+			cooling-device = <&cpu0 5 THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&de {
+	status = "okay";
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&ehci1 {
+ 	status = "okay";
+};
+
+&ehci2 {
+	status = "okay";
+};
+
+&ehci3 {
+	status = "okay";
+};
+
+&emac {
+	phy-handle = <&int_mii_phy>;
+	phy-mode = "mii";
+	allwinner,leds-active-low;
+	status = "okay";
+    local-mac-address = [ 00 00 00 00 00 00 ];	
+};
+
+
+&cpu0 {
+	cpu-supply = <&reg_sy8113b>;
+};
+
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&sound_hdmi {
+	status = "okay";
+};
+
+
+&i2s2 {
+	status = "okay";
+};
+
+&ir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_ir_rx_pin>;
+	status = "okay";
+};
+
+&codec {
+	allwinner,audio-routing =
+		"Line Out", "LINEOUT",
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+	status = "okay";
+};
+
+&codec_analog {
+	status = "okay";
+};
+
+
+&mixer0 {
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	/*
+	 * In different revisions the board have different card detect
+	 * configuration.
+	 */
+	broken-cd;
+	status = "okay";
+    boot_device = <0>;
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		interrupt-parent = <&pio>;
+		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; // PG10 / EINT10
+		interrupt-names = "host-wake";
+	};
+};
+
+&mmc1_pins {
+	bias-pull-up;
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-hw-reset;
+	/* status = "okay"; */
+};
+
+&mmc2_8bit_pins {
+	/* Increase drive strength for DDR modes */
+	drive-strength = <40>;
+	/* eMMC is missing pull-ups */
+	bias-pull-up;
+};
+
+
+&spi1 {
+	status = "disabled";
+	spidev1: spi@0 {
+		compatible = "nanopi,spidev";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
+};
+
+&ohci0 {
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&ohci2 {
+	status = "okay";
+};
+
+&ohci3 {
+	status = "okay";
+};
+
+
+&pio {
+    spi0_cs_pins: spi0_cs_pins {
+        pins = "PC3", "PA6";
+        function = "gpio_out";
+    };
+    bt_pwr_pin: bt_pwr_pin@0 {
+        pins = "PG12";
+        function = "gpio_out";
+    };
+};
+
+&r_pio {
+	leds_r_bpi: led_pins@0 {
+		pins = "PL10";
+		function = "gpio_out";
+	};
+
+	sw_r_bpi: key_pins@0 {
+		pins = "PL3";
+		function = "gpio_in";
+	};
+    
+    vdd_cpux_r_bpi: regulator_pins@0 {
+		allwinner,pins = "PL1";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+    
+    wifi_en_bpi: wifi_en_pin {
+        pins = "PL7";
+        function = "gpio_out";
+    };
+};
+
+&i2c0 {
+    status = "okay";
+    /*
+    rtc@68 {
+            compatible = "dallas,ds1307";
+            reg = <0x68>;
+    };
+    */
+};
+
+&i2c1 {
+    /* no I2C1 for I2S0 */
+    status = "okay";
+};
+
+&i2c2 {
+    status = "disabled";
+};
+
+&spi0 {
+    /* needed to avoid dtc warning */
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    /* status = "okay";  */
+    status = "disabled";
+    pinctrl-names = "default";
+    pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+    cs-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>, <&pio 0 6 GPIO_ACTIVE_HIGH>;
+
+    spidev0: spi@0 {
+        compatible = "nanopi,spidev";
+        reg = <0>;
+        /* status = "disabled"; */
+        status = "okay"; 
+
+        spi-max-frequency = <10000000>;
+    };
+
+    spiflash: spiflash@0 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "mxicy,mx25l1606e";
+        reg = <0>;
+        status = "disabled";
+
+        spi-max-frequency = <50000000>;
+        mode = <0>;
+
+        partition@0 {
+            reg = <0x0 0x200000>;
+            label = "spi-flash";
+        };
+    };
+
+    pitft: pitft@0{
+        compatible = "sitronix,st7789v";
+        reg = <0>;
+        /* status = "okay"; */
+        status = "disabled";
+
+        spi-max-frequency = <50000000>;
+        rotate = <90>;
+        fps = <33>;
+        buswidth = <8>;
+        dc-gpios = <&pio 0 1 GPIO_ACTIVE_HIGH>;     /* PA1 */
+        reset-gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
+        debug = <0x0>;
+    };
+
+    pitft_ts: pitft-ts@1 {
+        compatible = "ti,ads7846";
+        reg = <1>;
+        /* status = "okay"; */
+        status = "disabled";
+
+        spi-max-frequency = <2000000>;
+        interrupt-parent = <&pio>;
+        interrupts = <6 9 IRQ_TYPE_EDGE_FALLING>;   /* PG9 / EINT9 */
+        pendown-gpio = <&pio 6 9 GPIO_ACTIVE_LOW>;
+        ti,swap-xy;
+        ti,vref-delay-usecs = <1000>;
+        ti,x-min = /bits/ 16 <100>;
+        ti,x-max = /bits/ 16 <0xfff>;
+        ti,y-min = /bits/ 16 <100>;
+        ti,y-max = /bits/ 16 <0xfff>;
+        ti,vref-mv = <3300>;
+        ti,x-plate-ohms = /bits/ 16 <256>;
+        ti,penirq-recheck-delay-usecs = <10>;
+        ti,settle-delay-usec = /bits/ 16 <100>;
+        ti,keep-vref-on = <1>;
+        ti,pressure-max = /bits/ 16 <0xfff>;
+        ti,debounce-max = <10>;
+        ti,debounce-tol = <30>;
+        ti,debounce-rep = <1>;
+    };
+};
+
+
+&reg_usb0_vbus {
+	gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
+	status = "disabled";
+};
+
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pa_pins>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <1500000>;		
+		clocks = <&rtc 1>;
+		clock-names = "lpo";
+		vbat-supply = <&reg_vcc3v3>;
+		vddio-supply = <&reg_vcc3v3>;
+		device-wakeup-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
+		host-wakeup-gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
+		shutdown-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "disabled"; 
+    /* status = "okay"; */
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+	/* status = "disabled"; */
+    status = "okay";
+};
+
+&usb_otg {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usbphy {
+	usb0_id_det-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
+	/* usb0_vbus-supply = <&reg_usb0_vbus>; */
+	/* VBUS on USB host ports are always on */
+    /* USB OTG VBUS is directly connected to 5V without any regulators */
+	status = "okay";
+};
+
+#ifdef _CAMERA_OV5640_
+&csi {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		csi_ep: endpoint {
+			remote-endpoint = <&ov5640_ep>;
+			bus-width = <8>;
+			hsync-active = <1>; /* Active high */
+			vsync-active = <0>; /* Active low */
+			data-active = <1>;  /* Active high */
+			pclk-sample = <1>;  /* Rising */
+		};
+	};
+};
+#endif
