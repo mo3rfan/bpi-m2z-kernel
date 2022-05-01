@@ -12,7 +12,7 @@ export PATH=$PATH:/opt/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/bin
 
 2. Install the following tools and libs:
 ```
-sudo apt-get install bison g++ libgmp3-dev libmpc-dev
+sudo apt-get install flex bison g++ libgmp3-dev libmpc-dev
 ```
 
 3. Build from this project root.
