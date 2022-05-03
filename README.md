@@ -21,7 +21,7 @@ sudo apt-get install flex bison g++ libgmp3-dev libmpc-dev
 make INSTALL_MOD_PATH=output ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabihf- m2z_lima_defconfig zImage modules modules_install dtbs -j$(nproc)
 ```
 
-4. Copy over the output/* (lib/modules) into rootfs of memory card:
+4. Copy over the output/* (lib/modules) into rootfs of memory card (Follow the [instructions here to install ubuntu](https://github.com/avafinger/bananapi-zero-ubuntu-base-minimal/releases/tag/v3.10) in the memory card):
 
 ```
 sudo cp -vfr ./output/* /
