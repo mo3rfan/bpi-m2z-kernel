@@ -31,7 +31,7 @@ sync
 5. Install into the /boot dir of the memory card:
 
 ```
-export KV=$(strings ./arch/arm/boot/Image |grep "Linux version"|awk '{print $3}')
+export KV=$(strings ./arch/arm/boot/Image | grep "Linux version" -m 1 | awk '{print $3}')
 sudo cp -fv ./arch/arm/boot/zImage /boot/zImage_${KV}
 sync
 sudo cp -fv ./arch/arm/boot/dts/bpi-m2-zero-v4.dtb /boot/bpi-m2-zero.dtb_${KV}
